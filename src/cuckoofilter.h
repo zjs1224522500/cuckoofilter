@@ -40,7 +40,7 @@ class CuckooFilter {
   size_t num_items_;
 
   typedef struct {
-    size_t index;
+    size_t index; 
     uint32_t tag;
     bool used;
   } VictimCache;
@@ -53,21 +53,21 @@ class CuckooFilter {
     // table_->num_buckets is always a power of two, so modulo can be replaced
     // with
     // bitwise-and:
-    return hv & (table_->NumBuckets() - 1);
+    return hv & (table_->NumBuckets() - 1); // % table_->NumBuckets(); 对桶个数取模
   }
 
   inline uint32_t TagHash(uint32_t hv) const {
     uint32_t tag;
-    tag = hv & ((1ULL << bits_per_item) - 1);
-    tag += (tag == 0);
+    tag = hv & ((1ULL << bits_per_item) - 1); // % 2^bits_per_item 得到指纹
+    tag += (tag == 0); // 避免指纹为 0
     return tag;
   }
 
   inline void GenerateIndexTagHash(const ItemType& item, size_t* index,
                                    uint32_t* tag) const {
-    const uint64_t hash = hasher_(item);
-    *index = IndexHash(hash >> 32);
-    *tag = TagHash(hash);
+    const uint64_t hash = hasher_(item); // 计算 64 位 hash 值
+    *index = IndexHash(hash >> 32); // 计算桶号
+    *tag = TagHash(hash); // 计算指纹
   }
 
   inline size_t AltIndex(const size_t index, const uint32_t tag) const {
@@ -95,6 +95,10 @@ class CuckooFilter {
     }
     victim_.used = false;
     table_ = new TableType<bits_per_item>(num_buckets);
+  }
+
+  void Clear() {
+    table_->Clear();
   }
 
   ~CuckooFilter() { delete table_; }
@@ -130,7 +134,7 @@ Status CuckooFilter<ItemType, bits_per_item, TableType, HashFamily>::Add(
     return NotEnoughSpace;
   }
 
-  GenerateIndexTagHash(item, &i, &tag);
+  GenerateIndexTagHash(item, &i, &tag); // 生成 item 的 index（桶号） 和 tag（指纹）
   return AddImpl(i, tag);
 }
 
@@ -138,26 +142,30 @@ template <typename ItemType, size_t bits_per_item,
           template <size_t> class TableType, typename HashFamily>
 Status CuckooFilter<ItemType, bits_per_item, TableType, HashFamily>::AddImpl(
     const size_t i, const uint32_t tag) {
-  size_t curindex = i;
-  uint32_t curtag = tag;
-  uint32_t oldtag;
+  size_t curindex = i; // 桶号
+  uint32_t curtag = tag; // 指纹
+  uint32_t oldtag; // 驱逐用的旧数据的指纹
 
-  for (uint32_t count = 0; count < kMaxCuckooCount; count++) {
+  for (uint32_t count = 0; count < kMaxCuckooCount; count++) { // 循环 kickout
     bool kickout = count > 0;
     oldtag = 0;
-    if (table_->InsertTagToBucket(curindex, curtag, kickout, oldtag)) {
+    if (table_->InsertTagToBucket(curindex, curtag, kickout, oldtag)) { // 插入成功
+      if (oldtag == curtag) {
+        return Ok;
+      }
       num_items_++;
       return Ok;
     }
-    if (kickout) {
+
+    if (kickout) { // 如果被 kickout，则更新 curtag 为当前的逐出的 oldtag
       curtag = oldtag;
     }
-    curindex = AltIndex(curindex, curtag);
+    curindex = AltIndex(curindex, curtag); // 重新计算一个桶号
   }
 
-  victim_.index = curindex;
-  victim_.tag = curtag;
-  victim_.used = true;
+  victim_.index = curindex; // 逐出多次之后还是有个数据没存下来，则将其存入 victim_
+  victim_.tag = curtag; // 记录下对应的 tag 指纹
+  victim_.used = true; // 设置为已使用
   return Ok;
 }
 
@@ -175,7 +183,7 @@ Status CuckooFilter<ItemType, bits_per_item, TableType, HashFamily>::Contain(
   assert(i1 == AltIndex(i2, tag));
 
   found = victim_.used && (tag == victim_.tag) &&
-          (i1 == victim_.index || i2 == victim_.index);
+          (i1 == victim_.index || i2 == victim_.index); // 如果是逐出的数据，则返回 true
 
   if (found || table_->FindTagInBuckets(i1, i2, tag)) {
     return Ok;

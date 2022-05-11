@@ -7,6 +7,7 @@
 #include <vector>
 
 using cuckoofilter::CuckooFilter;
+using namespace std;
 
 int main(int argc, char **argv) {
   size_t total_items = 1000000;
@@ -27,6 +28,7 @@ int main(int argc, char **argv) {
       break;
     }
   }
+  cout << "Add " << num_inserted << " items OK!" << endl;
 
   // Check if previously inserted items are in the filter, expected
   // true for all items
