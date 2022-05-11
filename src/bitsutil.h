@@ -11,8 +11,8 @@ namespace cuckoofilter {
 #define haszero8(x) (((x)-0x01010101ULL) & (~(x)) & 0x80808080ULL)
 #define hasvalue8(x, n) (haszero8((x) ^ (0x01010101ULL * (n))))
 
-#define haszero12(x) (((x)-0x001001001001ULL) & (~(x)) & 0x800800800800ULL)
-#define hasvalue12(x, n) (haszero12((x) ^ (0x001001001001ULL * (n))))
+#define haszero12(x) (((x)-0x001001001001ULL) & (~(x)) & 0x800800800800ULL) // 确定一个变量是否含有为0的字节
+#define hasvalue12(x, n) (haszero12((x) ^ (0x001001001001ULL * (n)))) // 确定一个变量是否含有值为n的字节
 
 #define haszero16(x) \
   (((x)-0x0001000100010001ULL) & (~(x)) & 0x8000800080008000ULL)

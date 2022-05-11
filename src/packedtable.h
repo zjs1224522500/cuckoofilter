@@ -37,6 +37,10 @@ class PackedTable {
     delete[] buckets_; 
   }
 
+  void Clear() {
+    memset(buckets_, 0, len_);
+  }
+
   size_t NumBuckets() const {
     return num_buckets_;
   }
